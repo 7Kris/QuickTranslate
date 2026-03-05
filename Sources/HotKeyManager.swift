@@ -10,9 +10,33 @@ class HotKeyManager {
     private static var waitingForSecondTap = false
     private static var pendingTimer: DispatchWorkItem?
     private static let replayMarker: Int64 = 0x5154_4B59 // "QTKY"
+    private static var hasShownAlert = false // アラートを一度だけ表示するフラグ
 
     func register(callback: @escaping () -> Void) {
         HotKeyManager.callback = callback
+
+        print("🔍 [DEBUG] アクセシビリティ権限をチェック中...")
+        
+        // プロンプト付きで権限をチェック（初回のみシステムダイアログが表示される）
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+        let trustedWithPrompt = AXIsProcessTrustedWithOptions(options)
+        
+        print("🔍 [DEBUG] 権限チェック結果: \(trustedWithPrompt ? "許可済み" : "未許可")")
+        
+        if !trustedWithPrompt {
+            // 開発中の注意: デバッグビルドでは毎回バイナリが変わるため、
+            // 権限が再要求されます。本番環境では署名されたビルドを使用してください。
+            print("⚠️ [DEBUG] アクセシビリティ権限がありません")
+            print("💡 [DEBUG] デバッグビルドの場合: システム設定 > プライバシーとセキュリティ > アクセシビリティ で許可してください")
+            print("💡 [DEBUG] 本番ビルドの場合: コード署名を有効にしてください（Signing & Capabilities）")
+            
+            // 権限がない場合、一度だけアラートを表示
+            if !HotKeyManager.hasShownAlert {
+                HotKeyManager.hasShownAlert = true
+                showAccessibilityPermissionAlert()
+            }
+            return
+        }
 
         let eventMask: CGEventMask = (1 << CGEventType.keyDown.rawValue)
 
@@ -33,14 +57,37 @@ class HotKeyManager {
             },
             userInfo: nil
         ) else {
-            print("Failed to create event tap. Make sure accessibility permissions are granted.")
+            print("❌ [DEBUG] イベントタップの作成に失敗しました")
+            if !HotKeyManager.hasShownAlert {
+                HotKeyManager.hasShownAlert = true
+                showAccessibilityPermissionAlert()
+            }
             return
         }
 
+        print("✅ [DEBUG] イベントタップの作成に成功しました")
         HotKeyManager.eventTap = tap
         let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
+    }
+
+    private func showAccessibilityPermissionAlert() {
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.messageText = "アクセシビリティ権限が必要です"
+            alert.informativeText = "QuickTranslateがグローバルホットキー（⌘D×2）を使用するには、アクセシビリティ権限が必要です。\n\nシステム設定を開いて、QuickTranslateにアクセシビリティ権限を付与してください。"
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "システム設定を開く")
+            alert.addButton(withTitle: "キャンセル")
+            
+            let response = alert.runModal()
+            if response == .alertFirstButtonReturn {
+                // システム設定のアクセシビリティページを開く
+                let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
+                NSWorkspace.shared.open(url)
+            }
+        }
     }
 
     private static func handleKeyDown(event: CGEvent) -> Unmanaged<CGEvent>? {
