@@ -3,23 +3,16 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 70;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		20E5FDA8A6E0A778BAE398DA /* HotKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58DB5A7D27D77D85CA5224F4 /* HotKeyManager.swift */; };
-		A1B2C3D4E5F60718A9B0C1D2 /* AppleTranslator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718A9B0C1D3 /* AppleTranslator.swift */; };
-		C78919F3F4BF5B16E981E27A /* QuickTranslateApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58A45D4AE2FFF18DB37B6498 /* QuickTranslateApp.swift */; };
-		D888F8F0E51444A45D35CABE /* TranslationWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5187671387A41C4A1FAC1FBC /* TranslationWindowController.swift */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
-		5187671387A41C4A1FAC1FBC /* TranslationWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationWindowController.swift; sourceTree = "<group>"; };
-		58A45D4AE2FFF18DB37B6498 /* QuickTranslateApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickTranslateApp.swift; sourceTree = "<group>"; };
-		58DB5A7D27D77D85CA5224F4 /* HotKeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKeyManager.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F60718A9B0C1D3 /* AppleTranslator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleTranslator.swift; sourceTree = "<group>"; };
 		B7F282B391830AA0BA8E0147 /* QuickTranslate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QuickTranslate.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		8A747ABE2F5998C60048BA72 /* Sources */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Sources; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXGroup section */
 		603376795D38F33BF8BB373E /* Products */ = {
@@ -30,21 +23,10 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		BC1FF17DA5F1ECECDA8F46CC /* Sources */ = {
-			isa = PBXGroup;
-			children = (
-				A1B2C3D4E5F60718A9B0C1D3 /* AppleTranslator.swift */,
-				58DB5A7D27D77D85CA5224F4 /* HotKeyManager.swift */,
-				58A45D4AE2FFF18DB37B6498 /* QuickTranslateApp.swift */,
-				5187671387A41C4A1FAC1FBC /* TranslationWindowController.swift */,
-			);
-			path = Sources;
-			sourceTree = "<group>";
-		};
 		CC5077BAF41E8EDE3BCDE964 = {
 			isa = PBXGroup;
 			children = (
-				BC1FF17DA5F1ECECDA8F46CC /* Sources */,
+				8A747ABE2F5998C60048BA72 /* Sources */,
 				603376795D38F33BF8BB373E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -62,6 +44,9 @@
 			buildRules = (
 			);
 			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				8A747ABE2F5998C60048BA72 /* Sources */,
 			);
 			name = QuickTranslate;
 			packageProductDependencies = (
@@ -124,10 +109,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A1B2C3D4E5F60718A9B0C1D2 /* AppleTranslator.swift in Sources */,
-				20E5FDA8A6E0A778BAE398DA /* HotKeyManager.swift in Sources */,
-				C78919F3F4BF5B16E981E27A /* QuickTranslateApp.swift in Sources */,
-				D888F8F0E51444A45D35CABE /* TranslationWindowController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
