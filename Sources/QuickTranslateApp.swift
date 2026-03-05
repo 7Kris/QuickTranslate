@@ -73,14 +73,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 await MainActor.run {
                     self.translationWindowController?.updateResult(result)
                 }
-            } catch let error as AppleTranslatorError where error.isSetupError {
-                await MainActor.run {
-                    self.showLanguageSetupAlert(error: error)
-                    self.translationWindowController?.updateResult("エラー: \(error.localizedDescription)")
-                    self.translationWindowController?.setError(true)
-                }
             } catch {
                 await MainActor.run {
+                    if let setupError = error as? AppleTranslatorError, setupError.isSetupError {
+                        self.showLanguageSetupAlert(error: setupError)
+                    }
                     self.translationWindowController?.updateResult("エラー: \(error.localizedDescription)")
                     self.translationWindowController?.setError(true)
                 }

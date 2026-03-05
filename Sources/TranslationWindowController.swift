@@ -7,10 +7,6 @@ class TranslationWindowController: NSObject, NSWindowDelegate {
     var onTranslate: ((String) -> Void)?
     var onClose: (() -> Void)?
 
-    var currentEngine: TranslationEngine {
-        viewModel.engine
-    }
-
     func show(original: String, result: String?, isError: Bool) {
         viewModel.originalText = original
         viewModel.translatedText = result ?? ""
@@ -110,13 +106,8 @@ class TranslationWindowController: NSObject, NSWindowDelegate {
     }
 }
 
-enum TranslationEngine: String, CaseIterable {
-    case apple = "Apple"
-}
-
 class TranslationViewModel: ObservableObject {
     private static let fontSizeKey = "TranslationFontSize"
-    private static let engineKey = "TranslationEngine"
     private static let defaultFontSize: CGFloat = 16
 
     @Published var originalText: String = ""
@@ -126,15 +117,10 @@ class TranslationViewModel: ObservableObject {
     @Published var fontSize: CGFloat {
         didSet { UserDefaults.standard.set(fontSize, forKey: Self.fontSizeKey) }
     }
-    @Published var engine: TranslationEngine {
-        didSet { UserDefaults.standard.set(engine.rawValue, forKey: Self.engineKey) }
-    }
 
     init() {
         let saved = UserDefaults.standard.double(forKey: Self.fontSizeKey)
         self.fontSize = saved > 0 ? saved : Self.defaultFontSize
-        let savedEngine = UserDefaults.standard.string(forKey: Self.engineKey) ?? TranslationEngine.apple.rawValue
-        self.engine = TranslationEngine(rawValue: savedEngine) ?? .apple
     }
 }
 
@@ -221,14 +207,6 @@ struct TitlebarControlView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Picker("", selection: $viewModel.engine) {
-                ForEach(TranslationEngine.allCases, id: \.self) { engine in
-                    Text(engine.rawValue).tag(engine)
-                }
-            }
-            .pickerStyle(.segmented)
-            .frame(width: 140)
-
             HStack(spacing: 4) {
                 Text("A")
                     .font(.system(size: 10))

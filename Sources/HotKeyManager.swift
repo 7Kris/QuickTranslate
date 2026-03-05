@@ -41,7 +41,6 @@ class HotKeyManager {
             return
         }
 
-        print("✅ [DEBUG] イベントタップの作成に成功しました")
         HotKeyManager.eventTap = tap
         let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
