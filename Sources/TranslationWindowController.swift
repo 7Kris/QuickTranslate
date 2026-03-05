@@ -111,7 +111,6 @@ class TranslationWindowController: NSObject, NSWindowDelegate {
 }
 
 enum TranslationEngine: String, CaseIterable {
-    case claude = "Claude"
     case apple = "Apple"
 }
 
@@ -134,8 +133,8 @@ class TranslationViewModel: ObservableObject {
     init() {
         let saved = UserDefaults.standard.double(forKey: Self.fontSizeKey)
         self.fontSize = saved > 0 ? saved : Self.defaultFontSize
-        let savedEngine = UserDefaults.standard.string(forKey: Self.engineKey) ?? TranslationEngine.claude.rawValue
-        self.engine = TranslationEngine(rawValue: savedEngine) ?? .claude
+        let savedEngine = UserDefaults.standard.string(forKey: Self.engineKey) ?? TranslationEngine.apple.rawValue
+        self.engine = TranslationEngine(rawValue: savedEngine) ?? .apple
     }
 }
 

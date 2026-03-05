@@ -62,19 +62,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func translateText(_ text: String) {
-        let engine = translationWindowController?.currentEngine ?? .claude
         Task {
             do {
                 let result: String
-                switch engine {
-                case .claude:
-                    result = try await ClaudeTranslator().translate(text: text)
-                case .apple:
-                    if #available(macOS 26.0, *) {
-                        result = try await AppleTranslator().translate(text: text)
-                    } else {
-                        throw NSError(domain: "QuickTranslate", code: 1, userInfo: [NSLocalizedDescriptionKey: "Apple Translation requires macOS 26.0 or later. Please download translation languages in System Settings > General > Language & Region > Translation Languages."])
-                    }
+                if #available(macOS 26.0, *) {
+                    result = try await AppleTranslator().translate(text: text)
+                } else {
+                    throw NSError(domain: "QuickTranslate", code: 1, userInfo: [NSLocalizedDescriptionKey: "Apple Translation requires macOS 26.0 or later. Please download translation languages in System Settings > General > Language & Region > Translation Languages."])
                 }
                 await MainActor.run {
                     self.translationWindowController?.updateResult(result)
