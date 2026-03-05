@@ -91,7 +91,7 @@ struct ClaudeTranslator {
         return try await withCheckedThrowingContinuation { continuation in
             let process = Process()
             process.executableURL = URL(fileURLWithPath: resolvedPath)
-            process.arguments = ["-p", prompt, "--model", "claude-haiku-4-5-20251001", "--max-turns", "1"]
+            process.arguments = ["-p", prompt, "--model", "haiku", "--max-turns", "1"]
 
             // PATH環境変数を拡張（nodeなどの依存コマンドを見つけるため）
             var environment = ProcessInfo.processInfo.environment
