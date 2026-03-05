@@ -10,6 +10,8 @@ class HotKeyManager {
     private static var waitingForSecondTap = false
     private static var pendingTimer: DispatchWorkItem?
     private static let replayMarker: Int64 = 0x5154_4B59 // "QTKY"
+    private static let tapQueue = DispatchQueue(label: "com.quicktranslate.eventtap")
+
     func register(callback: @escaping () -> Void) {
         HotKeyManager.callback = callback
 
@@ -19,32 +21,43 @@ class HotKeyManager {
 
         guard trusted else { return }
 
-        let eventMask: CGEventMask = (1 << CGEventType.keyDown.rawValue)
+        // イベントタップを専用バックグラウンドスレッドで実行し、
+        // メインスレッドの負荷でHIDパイプラインがブロックされるのを防ぐ
+        let thread = Thread {
+            let eventMask: CGEventMask = (1 << CGEventType.keyDown.rawValue)
 
-        guard let tap = CGEvent.tapCreate(
-            tap: .cgSessionEventTap,
-            place: .headInsertEventTap,
-            options: .defaultTap,
-            eventsOfInterest: eventMask,
-            callback: { _, type, event, _ -> Unmanaged<CGEvent>? in
-                // イベントタップが無効化された場合は再有効化
-                if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-                    if let tap = HotKeyManager.eventTap {
-                        CGEvent.tapEnable(tap: tap, enable: true)
+            guard let tap = CGEvent.tapCreate(
+                tap: .cgSessionEventTap,
+                place: .headInsertEventTap,
+                options: .defaultTap,
+                eventsOfInterest: eventMask,
+                callback: { _, type, event, _ -> Unmanaged<CGEvent>? in
+                    // イベントタップが無効化された場合は再有効化
+                    if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                        if let tap = HotKeyManager.eventTap {
+                            CGEvent.tapEnable(tap: tap, enable: true)
+                        }
+                        return Unmanaged.passUnretained(event)
                     }
-                    return Unmanaged.passUnretained(event)
-                }
-                return HotKeyManager.handleKeyDown(event: event)
-            },
-            userInfo: nil
-        ) else {
-            return
-        }
+                    // tapQueueで同期実行し、タイマーコールバックとの競合を防止
+                    return HotKeyManager.tapQueue.sync {
+                        HotKeyManager.handleKeyDown(event: event)
+                    }
+                },
+                userInfo: nil
+            ) else {
+                return
+            }
 
-        HotKeyManager.eventTap = tap
-        let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
-        CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
-        CGEvent.tapEnable(tap: tap, enable: true)
+            HotKeyManager.eventTap = tap
+            let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+            CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
+            CGEvent.tapEnable(tap: tap, enable: true)
+            CFRunLoopRun()
+        }
+        thread.name = "com.quicktranslate.eventtap"
+        thread.qualityOfService = .userInteractive
+        thread.start()
     }
 
     private static func handleKeyDown(event: CGEvent) -> Unmanaged<CGEvent>? {
@@ -93,7 +106,7 @@ class HotKeyManager {
                 HotKeyManager.replayCommandD()
             }
             pendingTimer = timer
-            DispatchQueue.main.asyncAfter(deadline: .now() + doubleTapInterval, execute: timer)
+            tapQueue.asyncAfter(deadline: .now() + doubleTapInterval, execute: timer)
 
             // 1回目のイベントを消費（リプレイで復元する）
             return nil
