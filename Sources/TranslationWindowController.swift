@@ -1,10 +1,15 @@
 import AppKit
 import SwiftUI
 
-class TranslationWindowController {
+class TranslationWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private var viewModel = TranslationViewModel()
     var onTranslate: ((String) -> Void)?
+    var onClose: (() -> Void)?
+
+    var currentEngine: TranslationEngine {
+        viewModel.engine
+    }
 
     func show(original: String, result: String?, isError: Bool) {
         viewModel.originalText = original
@@ -67,12 +72,13 @@ class TranslationWindowController {
         window.minSize = NSSize(width: 400, height: 300)
 
         // タイトルバーにフォントサイズUIを組み込む
-        let fontSizeView = NSHostingView(rootView: FontSizeControlView(viewModel: viewModel))
-        fontSizeView.frame = NSRect(x: 0, y: 0, width: 200, height: 28)
+        let fontSizeView = NSHostingView(rootView: TitlebarControlView(viewModel: viewModel))
+        fontSizeView.frame = NSRect(x: 0, y: 0, width: 360, height: 28)
         let accessory = NSTitlebarAccessoryViewController()
         accessory.view = fontSizeView
         accessory.layoutAttribute = .trailing
         window.addTitlebarAccessoryViewController(accessory)
+        window.delegate = self
 
         self.window = window
     }
@@ -96,11 +102,22 @@ class TranslationWindowController {
 
     private func close() {
         window?.orderOut(nil)
+        onClose?()
     }
+
+    func windowWillClose(_ notification: Notification) {
+        onClose?()
+    }
+}
+
+enum TranslationEngine: String, CaseIterable {
+    case claude = "Claude"
+    case apple = "Apple"
 }
 
 class TranslationViewModel: ObservableObject {
     private static let fontSizeKey = "TranslationFontSize"
+    private static let engineKey = "TranslationEngine"
     private static let defaultFontSize: CGFloat = 16
 
     @Published var originalText: String = ""
@@ -110,10 +127,15 @@ class TranslationViewModel: ObservableObject {
     @Published var fontSize: CGFloat {
         didSet { UserDefaults.standard.set(fontSize, forKey: Self.fontSizeKey) }
     }
+    @Published var engine: TranslationEngine {
+        didSet { UserDefaults.standard.set(engine.rawValue, forKey: Self.engineKey) }
+    }
 
     init() {
         let saved = UserDefaults.standard.double(forKey: Self.fontSizeKey)
         self.fontSize = saved > 0 ? saved : Self.defaultFontSize
+        let savedEngine = UserDefaults.standard.string(forKey: Self.engineKey) ?? TranslationEngine.claude.rawValue
+        self.engine = TranslationEngine(rawValue: savedEngine) ?? .claude
     }
 }
 
@@ -195,23 +217,33 @@ struct TranslationView: View {
     }
 }
 
-struct FontSizeControlView: View {
+struct TitlebarControlView: View {
     @ObservedObject var viewModel: TranslationViewModel
 
     var body: some View {
-        HStack(spacing: 4) {
-            Text("A")
-                .font(.system(size: 10))
-                .foregroundColor(.secondary)
-            Slider(value: $viewModel.fontSize, in: 10...40, step: 1)
-                .frame(width: 100)
-            Text("A")
-                .font(.system(size: 16))
-                .foregroundColor(.secondary)
-            Text("\(Int(viewModel.fontSize))")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .frame(width: 20)
+        HStack(spacing: 12) {
+            Picker("", selection: $viewModel.engine) {
+                ForEach(TranslationEngine.allCases, id: \.self) { engine in
+                    Text(engine.rawValue).tag(engine)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 140)
+
+            HStack(spacing: 4) {
+                Text("A")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+                Slider(value: $viewModel.fontSize, in: 10...40, step: 1)
+                    .frame(width: 100)
+                Text("A")
+                    .font(.system(size: 16))
+                    .foregroundColor(.secondary)
+                Text("\(Int(viewModel.fontSize))")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .frame(width: 20)
+            }
         }
         .padding(.trailing, 8)
     }
