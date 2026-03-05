@@ -32,7 +32,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "翻訳 (⌘D×2)", action: #selector(translateFromClipboard), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "翻訳ウインドウを開く", action: #selector(openTranslationWindow), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "クリップボードから翻訳 (⌘D×2)", action: #selector(translateFromClipboard), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "終了", action: #selector(quitApp), keyEquivalent: "q"))
         statusItem.menu = menu
@@ -45,6 +46,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    @objc private func openTranslationWindow() {
+        showTranslationWindow(original: "", result: "", isError: false)
+    }
+
     @objc private func translateFromClipboard() {
         let pasteboard = NSPasteboard.general
         guard let text = pasteboard.string(forType: .string), !text.isEmpty else {
@@ -53,7 +58,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         showTranslationWindow(original: text, result: nil, isError: false)
+        translateText(text)
+    }
 
+    private func translateText(_ text: String) {
         Task {
             do {
                 let translator = ClaudeTranslator()
@@ -73,6 +81,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func showTranslationWindow(original: String, result: String?, isError: Bool) {
         if translationWindowController == nil {
             translationWindowController = TranslationWindowController()
+            translationWindowController?.onTranslate = { [weak self] text in
+                self?.translationWindowController?.updateForRetranslation(original: text)
+                self?.translateText(text)
+            }
         }
         translationWindowController?.show(original: original, result: result, isError: isError)
     }

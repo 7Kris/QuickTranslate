@@ -4,11 +4,12 @@ import SwiftUI
 class TranslationWindowController {
     private var window: NSWindow?
     private var viewModel = TranslationViewModel()
+    var onTranslate: ((String) -> Void)?
 
     func show(original: String, result: String?, isError: Bool) {
         viewModel.originalText = original
         viewModel.translatedText = result ?? ""
-        viewModel.isLoading = result == nil
+        viewModel.isLoading = result == nil && !original.isEmpty
         viewModel.isError = isError
 
         if window == nil {
@@ -18,6 +19,13 @@ class TranslationWindowController {
         positionWindow()
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func updateForRetranslation(original: String) {
+        viewModel.originalText = original
+        viewModel.translatedText = ""
+        viewModel.isLoading = true
+        viewModel.isError = false
     }
 
     func updateResult(_ result: String) {
@@ -30,15 +38,22 @@ class TranslationWindowController {
     }
 
     private func createWindow() {
-        let contentView = TranslationView(viewModel: viewModel) { [weak self] in
+        let contentView = TranslationView(viewModel: viewModel, onClose: { [weak self] in
             self?.close()
-        }
+        }, onTranslate: { [weak self] text in
+            self?.onTranslate?(text)
+        }, onSwap: { [weak self] in
+            self?.swapTexts()
+            if let text = self?.viewModel.originalText, !text.isEmpty {
+                self?.onTranslate?(text)
+            }
+        })
 
         let hostingView = NSHostingView(rootView: contentView)
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 640, height: 480),
-            styleMask: [.titled, .closable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -47,9 +62,17 @@ class TranslationWindowController {
         window.title = "QuickTranslate"
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
-        window.level = .floating
         window.isReleasedWhenClosed = false
         window.backgroundColor = .windowBackgroundColor
+        window.minSize = NSSize(width: 400, height: 300)
+
+        // タイトルバーにフォントサイズUIを組み込む
+        let fontSizeView = NSHostingView(rootView: FontSizeControlView(viewModel: viewModel))
+        fontSizeView.frame = NSRect(x: 0, y: 0, width: 200, height: 28)
+        let accessory = NSTitlebarAccessoryViewController()
+        accessory.view = fontSizeView
+        accessory.layoutAttribute = .trailing
+        window.addTitlebarAccessoryViewController(accessory)
 
         self.window = window
     }
@@ -63,21 +86,42 @@ class TranslationWindowController {
         window?.setFrameOrigin(NSPoint(x: x, y: y))
     }
 
+    private func swapTexts() {
+        let swapped = viewModel.translatedText
+        viewModel.originalText = swapped
+        viewModel.translatedText = ""
+        viewModel.isLoading = !swapped.isEmpty
+        viewModel.isError = false
+    }
+
     private func close() {
         window?.orderOut(nil)
     }
 }
 
 class TranslationViewModel: ObservableObject {
+    private static let fontSizeKey = "TranslationFontSize"
+    private static let defaultFontSize: CGFloat = 16
+
     @Published var originalText: String = ""
     @Published var translatedText: String = ""
     @Published var isLoading: Bool = false
     @Published var isError: Bool = false
+    @Published var fontSize: CGFloat {
+        didSet { UserDefaults.standard.set(fontSize, forKey: Self.fontSizeKey) }
+    }
+
+    init() {
+        let saved = UserDefaults.standard.double(forKey: Self.fontSizeKey)
+        self.fontSize = saved > 0 ? saved : Self.defaultFontSize
+    }
 }
 
 struct TranslationView: View {
     @ObservedObject var viewModel: TranslationViewModel
     var onClose: () -> Void
+    var onTranslate: (String) -> Void
+    var onSwap: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -86,13 +130,25 @@ struct TranslationView: View {
                 Text("原文")
                     .font(.body)
                     .foregroundColor(.secondary)
-                ScrollView {
-                    Text(viewModel.originalText)
-                        .font(.system(size: 26))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                TextEditor(text: $viewModel.originalText)
+                    .font(.system(size: viewModel.fontSize))
+                    .scrollContentBackground(.hidden)
+            }
+            .frame(maxHeight: .infinity)
+
+            // 入れ替え・翻訳ボタン
+            HStack {
+                Button(action: onSwap) {
+                    Image(systemName: "arrow.up.arrow.down")
                 }
-                .frame(maxHeight: 120)
+                .disabled(viewModel.isLoading || (viewModel.originalText.isEmpty && viewModel.translatedText.isEmpty))
+
+                Spacer()
+
+                Button("翻訳") {
+                    onTranslate(viewModel.originalText)
+                }
+                .disabled(viewModel.isLoading || viewModel.originalText.isEmpty)
             }
 
             Divider()
@@ -108,14 +164,14 @@ struct TranslationView: View {
                         ProgressView()
                             .controlSize(.small)
                         Text("翻訳中...")
-                            .font(.system(size: 26))
+                            .font(.system(size: viewModel.fontSize))
                             .foregroundColor(.secondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 } else {
                     ScrollView {
                         Text(viewModel.translatedText)
-                            .font(.system(size: 26))
+                            .font(.system(size: viewModel.fontSize))
                             .foregroundColor(viewModel.isError ? .red : .primary)
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -132,13 +188,31 @@ struct TranslationView: View {
                     NSPasteboard.general.setString(viewModel.translatedText, forType: .string)
                 }
                 .disabled(viewModel.isLoading || viewModel.translatedText.isEmpty)
-
-                Button("閉じる") {
-                    onClose()
-                }
             }
         }
         .padding(16)
-        .frame(width: 640, height: 480)
+        .frame(minWidth: 400, minHeight: 300)
+    }
+}
+
+struct FontSizeControlView: View {
+    @ObservedObject var viewModel: TranslationViewModel
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text("A")
+                .font(.system(size: 10))
+                .foregroundColor(.secondary)
+            Slider(value: $viewModel.fontSize, in: 10...40, step: 1)
+                .frame(width: 100)
+            Text("A")
+                .font(.system(size: 16))
+                .foregroundColor(.secondary)
+            Text("\(Int(viewModel.fontSize))")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .frame(width: 20)
+        }
+        .padding(.trailing, 8)
     }
 }

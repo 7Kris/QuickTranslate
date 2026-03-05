@@ -116,7 +116,7 @@ struct ClaudeTranslator {
             let expandedPath = (additionalPaths + [originalPath]).joined(separator: ":")
             environment["PATH"] = expandedPath
             process.environment = environment
-            
+
             print("🔍 [DEBUG] claude実行時のPATH: \(expandedPath)")
 
             let stdoutPipe = Pipe()
