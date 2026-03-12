@@ -4,7 +4,7 @@ import SwiftUI
 class TranslationWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private var viewModel = TranslationViewModel()
-    var onTranslate: ((String) -> Void)?
+    var onTranslate: ((String, TranslationLanguage?, TranslationLanguage?) -> Void)?
     var onClose: (() -> Void)?
 
     func show(original: String, result: String?, isError: Bool) {
@@ -29,9 +29,11 @@ class TranslationWindowController: NSObject, NSWindowDelegate {
         viewModel.isError = false
     }
 
-    func updateResult(_ result: String) {
+    func updateResult(_ result: String, sourceLanguage: TranslationLanguage? = nil, targetLanguage: TranslationLanguage? = nil) {
         viewModel.translatedText = result
         viewModel.isLoading = false
+        if let source = sourceLanguage { viewModel.sourceLanguage = source }
+        if let target = targetLanguage { viewModel.targetLanguage = target }
     }
 
     func setError(_ isError: Bool) {
@@ -41,12 +43,14 @@ class TranslationWindowController: NSObject, NSWindowDelegate {
     private func createWindow() {
         let contentView = TranslationView(viewModel: viewModel, onClose: { [weak self] in
             self?.close()
-        }, onTranslate: { [weak self] text in
-            self?.onTranslate?(text)
+        }, onTranslate: { [weak self] text, source, target in
+            self?.onTranslate?(text, source, target)
         }, onSwap: { [weak self] in
             self?.swapTexts()
             if let text = self?.viewModel.originalText, !text.isEmpty {
-                self?.onTranslate?(text)
+                let source = self?.viewModel.sourceLanguage
+                let target = self?.viewModel.targetLanguage
+                self?.onTranslate?(text, target, source)
             }
         })
 
@@ -115,6 +119,8 @@ class TranslationViewModel: ObservableObject {
     @Published var translatedText: String = ""
     @Published var isLoading: Bool = false
     @Published var isError: Bool = false
+    @Published var sourceLanguage: TranslationLanguage = .english
+    @Published var targetLanguage: TranslationLanguage = .japanese
     @Published var fontSize: CGFloat {
         didSet { UserDefaults.standard.set(fontSize, forKey: Self.fontSizeKey) }
     }
@@ -132,14 +138,29 @@ class TranslationViewModel: ObservableObject {
 struct TranslationView: View {
     @ObservedObject var viewModel: TranslationViewModel
     var onClose: () -> Void
-    var onTranslate: (String) -> Void
+    var onTranslate: (String, TranslationLanguage?, TranslationLanguage?) -> Void
     var onSwap: () -> Void
 
     private var originalSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("原文")
-                .font(.body)
-                .foregroundColor(.secondary)
+            HStack(spacing: 4) {
+                Text("原文")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                Picker("", selection: $viewModel.sourceLanguage) {
+                    ForEach(TranslationLanguage.allCases) { lang in
+                        Text(lang.displayName).tag(lang)
+                    }
+                }
+                .labelsHidden()
+                .fixedSize()
+                .onChange(of: viewModel.sourceLanguage) { _ in
+                    if viewModel.sourceLanguage == viewModel.targetLanguage {
+                        viewModel.targetLanguage = viewModel.sourceLanguage == .japanese ? .english : .japanese
+                    }
+                    retranslateIfNeeded()
+                }
+            }
             TextEditor(text: $viewModel.originalText)
                 .font(.system(size: viewModel.fontSize))
                 .scrollContentBackground(.hidden)
@@ -149,9 +170,24 @@ struct TranslationView: View {
 
     private var translatedSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("翻訳")
-                .font(.body)
-                .foregroundColor(.secondary)
+            HStack(spacing: 4) {
+                Text("翻訳")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                Picker("", selection: $viewModel.targetLanguage) {
+                    ForEach(TranslationLanguage.allCases) { lang in
+                        Text(lang.displayName).tag(lang)
+                    }
+                }
+                .labelsHidden()
+                .fixedSize()
+                .onChange(of: viewModel.targetLanguage) { _ in
+                    if viewModel.targetLanguage == viewModel.sourceLanguage {
+                        viewModel.sourceLanguage = viewModel.targetLanguage == .japanese ? .english : .japanese
+                    }
+                    retranslateIfNeeded()
+                }
+            }
 
             if viewModel.isLoading {
                 HStack {
@@ -175,6 +211,11 @@ struct TranslationView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    private func retranslateIfNeeded() {
+        guard !viewModel.originalText.isEmpty, !viewModel.isLoading else { return }
+        onTranslate(viewModel.originalText, viewModel.sourceLanguage, viewModel.targetLanguage)
+    }
+
     private var actionButtons: some View {
         HStack {
             Button(action: onSwap) {
@@ -185,7 +226,7 @@ struct TranslationView: View {
             Spacer()
 
             Button("翻訳 (⌘Enter)") {
-                onTranslate(viewModel.originalText)
+                onTranslate(viewModel.originalText, viewModel.sourceLanguage, viewModel.targetLanguage)
             }
             .keyboardShortcut(.return, modifiers: .command)
             .disabled(viewModel.isLoading || viewModel.originalText.isEmpty)

@@ -37,31 +37,53 @@ enum AppleTranslatorError: LocalizedError {
     }
 }
 
-@available(macOS 26.0, *)
-struct AppleTranslator {
-    func translate(text: String) async throws -> String {
-        let japaneseLocale = Locale.Language(identifier: "ja")
-        let englishLocale = Locale.Language(identifier: "en")
+enum TranslationLanguage: String, CaseIterable, Identifiable {
+    case japanese = "ja"
+    case english = "en"
 
-        // Detect if the input text is Japanese by checking for CJK characters
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .japanese: return "日本語"
+        case .english: return "English"
+        }
+    }
+
+    var locale: Locale.Language {
+        Locale.Language(identifier: rawValue)
+    }
+
+    static func detect(from text: String) -> TranslationLanguage {
         let japaneseCharSet = CharacterSet(charactersIn: "\u{3040}"..."\u{309F}")
             .union(CharacterSet(charactersIn: "\u{30A0}"..."\u{30FF}"))
             .union(CharacterSet(charactersIn: "\u{4E00}"..."\u{9FFF}"))
-        let isJapanese = text.rangeOfCharacter(from: japaneseCharSet) != nil
+        return text.rangeOfCharacter(from: japaneseCharSet) != nil ? .japanese : .english
+    }
+}
 
-        let source = isJapanese ? japaneseLocale : englishLocale
-        let target = isJapanese ? englishLocale : japaneseLocale
+struct TranslationResult {
+    let text: String
+    let sourceLanguage: TranslationLanguage
+    let targetLanguage: TranslationLanguage
+}
+
+@available(macOS 26.0, *)
+struct AppleTranslator {
+    func translate(text: String, source: TranslationLanguage? = nil, target: TranslationLanguage? = nil) async throws -> TranslationResult {
+        let detectedSource = source ?? TranslationLanguage.detect(from: text)
+        let resolvedTarget = target ?? (detectedSource == .japanese ? .english : .japanese)
 
         let availability = LanguageAvailability()
-        let status = await availability.status(from: source, to: target)
+        let status = await availability.status(from: detectedSource.locale, to: resolvedTarget.locale)
 
         switch status {
         case .unsupported:
             throw AppleTranslatorError.unsupported
         case .supported:
             throw AppleTranslatorError.notInstalled(
-                source: isJapanese ? "Japanese" : "English",
-                target: isJapanese ? "English" : "Japanese"
+                source: detectedSource.displayName,
+                target: resolvedTarget.displayName
             )
         case .installed:
             break
@@ -70,10 +92,10 @@ struct AppleTranslator {
         }
 
         do {
-            let session = TranslationSession(installedSource: source, target: target)
+            let session = TranslationSession(installedSource: detectedSource.locale, target: resolvedTarget.locale)
             try await session.prepareTranslation()
             let response = try await session.translate(text)
-            return response.targetText
+            return TranslationResult(text: response.targetText, sourceLanguage: detectedSource, targetLanguage: resolvedTarget)
         } catch {
             throw AppleTranslatorError.translationFailed(underlying: error)
         }

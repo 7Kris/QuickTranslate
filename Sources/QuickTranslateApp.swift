@@ -61,17 +61,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         translateText(text)
     }
 
-    private func translateText(_ text: String) {
+    private func translateText(_ text: String, source: TranslationLanguage? = nil, target: TranslationLanguage? = nil) {
         Task {
             do {
-                let result: String
+                let result: TranslationResult
                 if #available(macOS 26.0, *) {
-                    result = try await AppleTranslator().translate(text: text)
+                    result = try await AppleTranslator().translate(text: text, source: source, target: target)
                 } else {
                     throw NSError(domain: "QuickTranslate", code: 1, userInfo: [NSLocalizedDescriptionKey: "Apple Translation requires macOS 26.0 or later. Please download translation languages in System Settings > General > Language & Region > Translation Languages."])
                 }
                 await MainActor.run {
-                    self.translationWindowController?.updateResult(result)
+                    self.translationWindowController?.updateResult(result.text, sourceLanguage: result.sourceLanguage, targetLanguage: result.targetLanguage)
                 }
             } catch {
                 await MainActor.run {
@@ -88,9 +88,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func showTranslationWindow(original: String, result: String?, isError: Bool) {
         if translationWindowController == nil {
             translationWindowController = TranslationWindowController()
-            translationWindowController?.onTranslate = { [weak self] text in
+            translationWindowController?.onTranslate = { [weak self] text, source, target in
                 self?.translationWindowController?.updateForRetranslation(original: text)
-                self?.translateText(text)
+                self?.translateText(text, source: source, target: target)
             }
             translationWindowController?.onClose = {
                 NSApp.setActivationPolicy(.accessory)
