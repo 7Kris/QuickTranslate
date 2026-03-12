@@ -109,6 +109,7 @@ class TranslationWindowController: NSObject, NSWindowDelegate {
 class TranslationViewModel: ObservableObject {
     private static let fontSizeKey = "TranslationFontSize"
     private static let defaultFontSize: CGFloat = 16
+    private static let horizontalSplitKey = "TranslationHorizontalSplit"
 
     @Published var originalText: String = ""
     @Published var translatedText: String = ""
@@ -117,10 +118,14 @@ class TranslationViewModel: ObservableObject {
     @Published var fontSize: CGFloat {
         didSet { UserDefaults.standard.set(fontSize, forKey: Self.fontSizeKey) }
     }
+    @Published var isHorizontalSplit: Bool {
+        didSet { UserDefaults.standard.set(isHorizontalSplit, forKey: Self.horizontalSplitKey) }
+    }
 
     init() {
         let saved = UserDefaults.standard.double(forKey: Self.fontSizeKey)
         self.fontSize = saved > 0 ? saved : Self.defaultFontSize
+        self.isHorizontalSplit = UserDefaults.standard.bool(forKey: Self.horizontalSplitKey)
     }
 }
 
@@ -130,71 +135,98 @@ struct TranslationView: View {
     var onTranslate: (String) -> Void
     var onSwap: () -> Void
 
+    private var originalSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("原文")
+                .font(.body)
+                .foregroundColor(.secondary)
+            TextEditor(text: $viewModel.originalText)
+                .font(.system(size: viewModel.fontSize))
+                .scrollContentBackground(.hidden)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var translatedSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("翻訳")
+                .font(.body)
+                .foregroundColor(.secondary)
+
+            if viewModel.isLoading {
+                HStack {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("翻訳中...")
+                        .font(.system(size: viewModel.fontSize))
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            } else {
+                ScrollView {
+                    Text(viewModel.translatedText)
+                        .font(.system(size: viewModel.fontSize))
+                        .foregroundColor(viewModel.isError ? .red : .primary)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var actionButtons: some View {
+        HStack {
+            Button(action: onSwap) {
+                Image(systemName: viewModel.isHorizontalSplit ? "arrow.left.arrow.right" : "arrow.up.arrow.down")
+            }
+            .disabled(viewModel.isLoading || (viewModel.originalText.isEmpty && viewModel.translatedText.isEmpty))
+
+            Spacer()
+
+            Button("翻訳 (⌘Enter)") {
+                onTranslate(viewModel.originalText)
+            }
+            .keyboardShortcut(.return, modifiers: .command)
+            .disabled(viewModel.isLoading || viewModel.originalText.isEmpty)
+        }
+    }
+
+    private var copyButton: some View {
+        HStack {
+            Spacer()
+            Button("コピー (⌘C)") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(viewModel.translatedText, forType: .string)
+            }
+            .keyboardShortcut("c", modifiers: .command)
+            .disabled(viewModel.isLoading || viewModel.translatedText.isEmpty)
+        }
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // 原文
-            VStack(alignment: .leading, spacing: 4) {
-                Text("原文")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                TextEditor(text: $viewModel.originalText)
-                    .font(.system(size: viewModel.fontSize))
-                    .scrollContentBackground(.hidden)
-            }
-            .frame(maxHeight: .infinity)
-
-            // 入れ替え・翻訳ボタン
-            HStack {
-                Button(action: onSwap) {
-                    Image(systemName: "arrow.up.arrow.down")
+        VStack(spacing: 12) {
+            if viewModel.isHorizontalSplit {
+                HStack(spacing: 12) {
+                    originalSection
+                    Divider()
+                    translatedSection
                 }
-                .disabled(viewModel.isLoading || (viewModel.originalText.isEmpty && viewModel.translatedText.isEmpty))
-
-                Spacer()
-
-                Button("翻訳") {
-                    onTranslate(viewModel.originalText)
-                }
-                .disabled(viewModel.isLoading || viewModel.originalText.isEmpty)
+            } else {
+                originalSection
+                actionButtons
+                Divider()
+                translatedSection
             }
 
-            Divider()
-
-            // 翻訳結果
-            VStack(alignment: .leading, spacing: 4) {
-                Text("翻訳")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-
-                if viewModel.isLoading {
-                    HStack {
-                        ProgressView()
-                            .controlSize(.small)
-                        Text("翻訳中...")
-                            .font(.system(size: viewModel.fontSize))
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                } else {
-                    ScrollView {
-                        Text(viewModel.translatedText)
-                            .font(.system(size: viewModel.fontSize))
-                            .foregroundColor(viewModel.isError ? .red : .primary)
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
+            if viewModel.isHorizontalSplit {
+                HStack {
+                    actionButtons
+                    Spacer()
+                    copyButton
                 }
-            }
-            .frame(maxHeight: .infinity)
-
-            // ボタン
-            HStack {
-                Spacer()
-                Button("コピー") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(viewModel.translatedText, forType: .string)
-                }
-                .disabled(viewModel.isLoading || viewModel.translatedText.isEmpty)
+            } else {
+                copyButton
             }
         }
         .padding(16)
@@ -207,6 +239,15 @@ struct TitlebarControlView: View {
 
     var body: some View {
         HStack(spacing: 12) {
+            Button(action: {
+                viewModel.isHorizontalSplit.toggle()
+            }) {
+                Image(systemName: viewModel.isHorizontalSplit ? "rectangle.split.1x2" : "rectangle.split.2x1")
+                    .font(.system(size: 12))
+            }
+            .buttonStyle(.borderless)
+            .help(viewModel.isHorizontalSplit ? "縦に分割" : "横に分割")
+
             HStack(spacing: 4) {
                 Text("A")
                     .font(.system(size: 10))
