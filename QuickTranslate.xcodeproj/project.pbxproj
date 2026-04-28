@@ -116,7 +116,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "cp -R \"$BUILT_PRODUCTS_DIR/$PRODUCT_NAME.app\" /Applications/\necho \"✅ /Applications/$PRODUCT_NAME.app にインストールしました\"\n";
+			shellScript = "# archive 時は配布物作成中なので /Applications/ への上書きをスキップ\n[ \"$ACTION\" = \"archive\" ] && exit 0\ncp -R \"$BUILT_PRODUCTS_DIR/$PRODUCT_NAME.app\" /Applications/\necho \"✅ /Applications/$PRODUCT_NAME.app にインストールしました\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
