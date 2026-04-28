@@ -15,7 +15,6 @@ macOS メニューバー常駐型の翻訳アプリ。グローバルショー�
 
 - Swift / SwiftUI
 - macOS 26 以降 (Apple Translation API 利用のため)
-- Claude CLI (翻訳エンジン)
 - Swift Package Manager
 
 ## セットアップ
@@ -26,16 +25,11 @@ macOS メニューバー常駐型の翻訳アプリ。グローバルショー�
 swift build
 ```
 
-### 2. Claude CLI のインストール
+### 2. 翻訳言語パックのダウンロード
 
-[Claude Code](https://docs.anthropic.com/en/docs/claude-code) をインストールし、認証を済ませてください:
+Apple Translation はオンデバイス翻訳のため言語パックを事前にダウンロードする必要があります。
 
-```bash
-npm install -g @anthropic-ai/claude-code
-claude  # 初回起動で認証
-```
-
-`~/.local/bin/claude` にインストールされている必要があります。
+`システム設定 > 一般 > 言語と地域 > 翻訳言語` から日本語と英語をダウンロードしてください。
 
 ### 3. 実行
 
