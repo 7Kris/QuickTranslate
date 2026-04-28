@@ -236,11 +236,10 @@ struct TranslationView: View {
     private var copyButton: some View {
         HStack {
             Spacer()
-            Button("コピー (⌘C)") {
+            Button("コピー") {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(viewModel.translatedText, forType: .string)
             }
-            .keyboardShortcut("c", modifiers: .command)
             .disabled(viewModel.isLoading || viewModel.translatedText.isEmpty)
         }
     }
