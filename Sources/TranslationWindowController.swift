@@ -221,6 +221,8 @@ struct TranslationView: View {
             Button(action: onSwap) {
                 Image(systemName: viewModel.isHorizontalSplit ? "arrow.left.arrow.right" : "arrow.up.arrow.down")
             }
+            .keyboardShortcut(.return, modifiers: [.command, .shift])
+            .help("入れ替えて翻訳 (⇧⌘Enter)")
             .disabled(viewModel.isLoading || (viewModel.originalText.isEmpty && viewModel.translatedText.isEmpty))
 
             Spacer()
