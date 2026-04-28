@@ -59,6 +59,39 @@ xcrun notarytool history --keychain-profile notarytool-quicktranslate 2>&1 | hea
 
 どれかが欠けている → `references/setup.md` を案内して停止。
 
+#### 1.1 deployment target と `@available` の整合性チェック
+
+実走中に踏んだ罠: `Sources/` 内に `@available(macOS X.Y, *)` で守られた API を呼ぶコードがあるのに、`project.yml` の `deploymentTarget` がそれより低いケース。コンパイルは通り archive も成功するが、低 OS で起動したユーザーは `else` 分岐に落ちて機能が動かない / 起動だけで使えないアプリを掴まされる。
+
+下記を必ず実行し、不一致があれば**リリースを止めてユーザーに報告し、deployment target を上げる別コミットを先に作るよう提案する** (実走時はこのチェックがなく、リリース後に発覚した経緯)。
+
+```bash
+# Sources 内の @available(macOS X.Y, *) の最大値を取る
+MAX_AVAIL=$(grep -rh "@available(macOS\|#available(macOS" Sources \
+  | grep -oE "macOS [0-9]+(\.[0-9]+)?" \
+  | grep -oE "[0-9]+(\.[0-9]+)?" \
+  | sort -V | tail -1)
+
+# project.yml の deploymentTarget を取る
+TARGET=$(grep -A1 "deploymentTarget:" project.yml | grep "macOS:" | grep -oE '[0-9]+(\.[0-9]+)?')
+
+echo "Max @available in Sources: $MAX_AVAIL"
+echo "deploymentTarget: $TARGET"
+# $MAX_AVAIL が $TARGET より大きければ警告
+```
+
+`@available` ガードの `else` 分岐がエラー文言だけのケース、つまり「実質その API が無いと機能しない」のなら、deployment target を上げるのが正解。`else` で代替実装が動くなら現状維持で OK。コードの両分岐を読んで判断すること。
+
+#### 1.2 `postBuildScripts` の副作用チェック
+
+`xcodegen` プロジェクトでは `postBuildScripts` が archive 中にも走る。`/Applications/` への cp や git push のような副作用スクリプトがあると、リリースビルド中に意図しない変更が起きる。
+
+```bash
+grep -A5 "postBuildScripts:" project.yml
+```
+
+副作用がありそうなら、スクリプト先頭に `[ "$ACTION" = "archive" ] && exit 0` のガードが入っているか確認。入っていなければユーザーに修正を提案する (本リポジトリでは既に対処済み)。
+
 ### 2. バージョン推定 (semver 自動バンプ)
 
 直近タグからの commit メッセージを使ってバンプ種別を提案する。タグが無い (初回リリース) 場合は `1.0.0` を提案。
@@ -86,16 +119,21 @@ git log --pretty=%s $RANGE
 
 ### 3. バージョン適用と xcodeproj 再生成
 
-`project.yml` の `info.properties` 配下と `SupportingFiles/Info.plist` の **両方** を更新する (xcodegen が後者を上書きするが、競合避けのため source も合わせる)。
+**Source of Truth は `project.yml`**。`SupportingFiles/Info.plist` は `xcodegen generate` のたびに `project.yml` の `info.properties` から再生成されるため、`Info.plist` を直接編集しても次の xcodegen 実行で消える。
 
-- `CFBundleShortVersionString`: 新バージョン (例: `"1.1.0"`)
-- `CFBundleVersion`: 直前から +1 した整数値 (例: `"1"` → `"2"`)
+ただし、xcodegen が再生成するのは `info.properties` に列挙したキーのみで、それ以外 (`CFBundleDevelopmentRegion`, `CFBundleExecutable` など Xcode が補う変数参照) は `Info.plist` に手書きで残っている。バージョン文字列は両方にあるため、混乱回避のため**両方更新してから xcodegen を走らせる** (どちらが先でも結果は同じだが、レビューしやすさのため)。
+
+- `project.yml` の `info.properties.CFBundleShortVersionString`: 新バージョン (例: `"1.1.0"`)
+- `project.yml` の `info.properties.CFBundleVersion`: 直前から +1 した整数値 (例: `"1"` → `"2"`)
+- `SupportingFiles/Info.plist` の同キー: 同じ値に揃える
 
 更新後:
 
 ```bash
 xcodegen generate
 ```
+
+`xcodegen generate` は `Info.plist` と `QuickTranslate.xcodeproj/project.pbxproj` の両方を上書きする。`pbxproj` 差分が出る場合は **そのコミットに含めること** (gitignore せずコミット対象になっている運用)。
 
 ### 4. archive と export
 
@@ -120,7 +158,9 @@ xcodebuild \
   archive
 ```
 
-`<TEAM_ID>` は `security find-identity -v -p codesigning | grep "Developer ID Application"` で出る括弧内 (例: `WF2DT668RS`) を埋める。または初回セットアップで `.claude/skills/release-mac-app/.team_id` などに書き留めた値を使う (gitignore 対象。後述)。
+`<TEAM_ID>` は `.claude/skills/release-mac-app/config.local.json` の `team_id` を使う (gitignore 対象、初回セットアップで作成)。設定ファイルがなければ前提チェック失敗扱いで `references/setup.md` に戻す。
+
+注意: Apple Development 証明書 (Personal Team) と Developer ID Application 証明書 (Apple Developer Program) は別チームの場合がある。`security find-identity` で出る Apple Development の Team ID をそのまま使うと公証で `403 Invalid or inaccessible developer team ID` になる。必ず Apple Developer Program 加入時の Team ID (`config.local.json` に保存した値) を使うこと。
 
 ExportOptions.plist は `references/ExportOptions.plist` を使う。値は固定でよい。
 
@@ -197,18 +237,27 @@ git push origin v$VERSION
 
 ### 8. GitHub Release 作成
 
-リリースノートは直近タグからの commit リストを元に下書きし、ユーザーに提示してから `gh release create` する。プレリリース判定: バージョンに `-rc`, `-beta`, `-alpha` が含まれていれば `--prerelease` を付ける。
+リリースノートは `references/release-notes-template.md` を読み、初回 / 2 回目以降で形式を分けて下書きする。テンプレート内の `{{...}}` プレースホルダを埋めて、ユーザーに提示してから `gh release create` する。
+
+プレリリース判定: バージョンに `-rc`, `-beta`, `-alpha` が含まれていれば `--prerelease` を付ける。
 
 ```bash
+# テンプレートを埋めて build/release/release-notes.md に書き出してから
 gh release create v$VERSION \
   --title "v$VERSION" \
-  --notes-file <(printf "## 変更点\n\n%s\n" "$(git log --pretty='- %s' $LAST_TAG..HEAD^)") \
+  --notes-file build/release/release-notes.md \
   $RELEASE_ZIP
 ```
 
-(`$LAST_TAG..HEAD^` で release コミット自身を除外する)
-
 成功したら URL を表示し、ユーザーに知らせる。
+
+### 9. リリース後のセキュリティ警告 (必ず行う)
+
+セットアップフェーズで App-specific password を会話で受け取っている場合、その文字列は会話履歴とログに残る。リリース完了後に必ず以下をユーザーに案内する:
+
+> セキュリティ注意: App-specific password が会話履歴に残っています。https://account.apple.com の「App用パスワード」から該当パスワードを取り消し、新しいものを発行して `xcrun notarytool store-credentials notarytool-quicktranslate ...` で再登録することをおすすめします。
+
+過去のセッションで設定済みの場合 (= 会話に password が出ていない場合) はこの警告は不要。判断は「password 文字列がこのセッションのどこかに登場したか」。
 
 ## 失敗時の対処
 
