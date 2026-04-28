@@ -5,4 +5,5 @@ build/
 DerivedData/
 .DS_Store
 .claude/settings.local.json
+.claude/skills/release-mac-app/config.local.json
 .vscode/launch.json
