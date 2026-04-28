@@ -2,7 +2,7 @@ name: QuickTranslate
 options:
   bundleIdPrefix: net.kenmaz
   deploymentTarget:
-    macOS: "13.0"
+    macOS: "26.0"
 
 targets:
   QuickTranslate:
@@ -14,7 +14,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: net.kenmaz.QuickTranslate
         SWIFT_VERSION: 5.9
-        MACOSX_DEPLOYMENT_TARGET: "13.0"
+        MACOSX_DEPLOYMENT_TARGET: "26.0"
         INFOPLIST_FILE: SupportingFiles/Info.plist
         CODE_SIGN_ENTITLEMENTS: SupportingFiles/QuickTranslate.entitlements
         ENABLE_HARDENED_RUNTIME: NO
@@ -32,7 +32,7 @@ targets:
         CFBundleIdentifier: net.kenmaz.QuickTranslate
         CFBundleVersion: "1"
         CFBundleShortVersionString: "1.0"
-        LSMinimumSystemVersion: "13.0"
+        LSMinimumSystemVersion: "26.0"
         LSUIElement: true
         NSHighResolutionCapable: true
         NSHumanReadableCopyright: "© 2026 kenmaz"

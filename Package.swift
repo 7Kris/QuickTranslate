@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "QuickTranslate",
     platforms: [
-        .macOS(.v13)
+        .macOS("26.0")
     ],
     targets: [
         .executableTarget(

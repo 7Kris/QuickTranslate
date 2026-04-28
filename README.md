@@ -14,7 +14,7 @@ macOS メニューバー常駐型の翻訳アプリ。グローバルショー�
 ## 技術スタック
 
 - Swift / SwiftUI
-- macOS 13 (Ventura) 以降
+- macOS 26 以降 (Apple Translation API 利用のため)
 - Claude CLI (翻訳エンジン)
 - Swift Package Manager
 
