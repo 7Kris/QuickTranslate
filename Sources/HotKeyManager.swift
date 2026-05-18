@@ -5,8 +5,9 @@ import CoreGraphics
 class HotKeyManager {
     private static var eventTap: CFMachPort?
     private static var callback: (() -> Void)?
-    private static var lastCommandCTime: Date?
-    private static let doubleTapInterval: TimeInterval = 0.4
+    private static var lastCommandCTimestamp: UInt64?
+    // CGEvent.timestamp はナノ秒単位の単調増加クロック。0.4秒 = 4 * 10^8 ns
+    private static let doubleTapIntervalNanos: UInt64 = 400_000_000
     private static let tapQueue = DispatchQueue(label: "com.quicktranslate.eventtap")
 
     func register(callback: @escaping () -> Void) {
@@ -36,8 +37,23 @@ class HotKeyManager {
                         }
                         return Unmanaged.passUnretained(event)
                     }
+
+                    // 通常タイピング時のディスパッチ負荷とキュー詰まりによる遅延を避けるため、
+                    // Cmd+C 該当時のみキューに投げる（フラグ判定はコールバック内で完結する軽い処理）
+                    let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+                    let flags = event.flags
+                    let isCommandOnly = flags.contains(.maskCommand) &&
+                                        !flags.contains(.maskShift) &&
+                                        !flags.contains(.maskAlternate) &&
+                                        !flags.contains(.maskControl)
+                    guard keyCode == 8 && isCommandOnly else {
+                        return Unmanaged.passUnretained(event)
+                    }
+
+                    // CGEvent.timestamp は単調増加クロック (システム時刻変更の影響を受けない)
+                    let timestamp = event.timestamp
                     HotKeyManager.tapQueue.async {
-                        HotKeyManager.handleKeyDown(event: event)
+                        HotKeyManager.handleCommandC(timestamp: timestamp)
                     }
                     return Unmanaged.passUnretained(event)
                 },
@@ -57,31 +73,17 @@ class HotKeyManager {
         thread.start()
     }
 
-    private static func handleKeyDown(event: CGEvent) {
-        let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-        let flags = event.flags
-
-        // Command+C のみ検出（keyCode 8 = 'C'、他の修飾キーなし）
-        let isCommandOnly = flags.contains(.maskCommand) &&
-                            !flags.contains(.maskShift) &&
-                            !flags.contains(.maskAlternate) &&
-                            !flags.contains(.maskControl)
-
-        guard keyCode == 8 && isCommandOnly else {
-            return
-        }
-
-        let now = Date()
-
-        if let lastTime = lastCommandCTime,
-           now.timeIntervalSince(lastTime) < doubleTapInterval {
+    private static func handleCommandC(timestamp: UInt64) {
+        if let lastTime = lastCommandCTimestamp,
+           timestamp > lastTime,
+           timestamp - lastTime < doubleTapIntervalNanos {
             // ダブルタップ検出：1回目のCmd+Cでクリップボードが更新されるのを待ってから翻訳実行
-            lastCommandCTime = nil
+            lastCommandCTimestamp = nil
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 callback?()
             }
         } else {
-            lastCommandCTime = now
+            lastCommandCTimestamp = timestamp
         }
     }
 

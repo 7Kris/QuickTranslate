@@ -23,10 +23,10 @@ description: リリース前の動作確認用に、Developer ID Application で
 
 ### 1. 前提確認
 
-Developer ID Application 証明書がキーチェーンにあること:
+Developer ID Application 証明書がキーチェーンにあること。以下のコマンドの `<NAME>` (例: `Kentaro Matsumae`) と `<TEAMID>` (例: `D9UCJ653YY`) を**自分の identity と Team ID に置き換えて**実行する。本スキル内のサンプルコマンドに含まれる `<NAME>` / `<TEAMID>` も同様に置き換えること。
 
 ```bash
-security find-identity -v -p codesigning | grep "Developer ID Application: Kentaro Matsumae (D9UCJ653YY)"
+security find-identity -v -p codesigning | grep "Developer ID Application: <NAME> (<TEAMID>)"
 ```
 
 リリース前確認なので、検証したいコミットが HEAD にある状態で行う。
@@ -56,8 +56,8 @@ xcodebuild -project QuickTranslate.xcodeproj \
            -scheme QuickTranslate \
            -configuration Release \
            CODE_SIGN_STYLE=Manual \
-           CODE_SIGN_IDENTITY="Developer ID Application: Kentaro Matsumae (D9UCJ653YY)" \
-           DEVELOPMENT_TEAM=D9UCJ653YY \
+           CODE_SIGN_IDENTITY="Developer ID Application: <NAME> (<TEAMID>)" \
+           DEVELOPMENT_TEAM=<TEAMID> \
            ENABLE_HARDENED_RUNTIME=YES \
            OTHER_CODE_SIGN_FLAGS="--timestamp --options=runtime" \
            CONFIGURATION_BUILD_DIR="$(pwd)/build/Release"
@@ -84,7 +84,7 @@ codesign -dv /Applications/QuickTranslate.app 2>&1 | head -12
 期待値:
 - `valid on disk` / `satisfies its Designated Requirement`
 - `flags=0x10000(runtime)` (Hardened Runtime 有効)
-- `TeamIdentifier=D9UCJ653YY`
+- `TeamIdentifier=<TEAMID>` (自分の Team ID と一致する)
 - `Timestamp=...` が入っている (Apple のタイムスタンプサーバーが応答した証拠)
 
 `spctl -a -vv /Applications/QuickTranslate.app` は **公証してないので `rejected, source=Unnotarized Developer ID` が出る** が、これは想定どおり。ローカルでは隔離属性 (`com.apple.quarantine`) が付かないので普通に起動できる。
