@@ -35,6 +35,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem(title: "翻訳ウインドウを開く", action: #selector(openTranslationWindow), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "クリップボードから翻訳 (⌘D×2)", action: #selector(translateFromClipboard), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
+        menu.addItem(NSMenuItem(title: "QuickTranslateについて", action: #selector(showAboutPanel), keyEquivalent: ""))
+        menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "終了", action: #selector(quitApp), keyEquivalent: "q"))
         statusItem.menu = menu
     }
@@ -119,6 +121,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func activateApp() {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func showAboutPanel() {
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.orderFrontStandardAboutPanel(nil)
     }
 
     @objc private func quitApp() {
