@@ -33,7 +33,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "翻訳ウインドウを開く", action: #selector(openTranslationWindow), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "クリップボードから翻訳 (⌘D×2)", action: #selector(translateFromClipboard), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "クリップボードから翻訳 (⌘C×2)", action: #selector(translateFromClipboard), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "QuickTranslateについて", action: #selector(showAboutPanel), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
