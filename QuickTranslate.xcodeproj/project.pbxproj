@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1E9C4670328686E5F56F5410 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0E65CD117A82B44015452197 /* Assets.xcassets */; };
 		20E5FDA8A6E0A778BAE398DA /* HotKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58DB5A7D27D77D85CA5224F4 /* HotKeyManager.swift */; };
 		C78919F3F4BF5B16E981E27A /* QuickTranslateApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58A45D4AE2FFF18DB37B6498 /* QuickTranslateApp.swift */; };
 		D888F8F0E51444A45D35CABE /* TranslationWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5187671387A41C4A1FAC1FBC /* TranslationWindowController.swift */; };
@@ -14,6 +15,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0E65CD117A82B44015452197 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5187671387A41C4A1FAC1FBC /* TranslationWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationWindowController.swift; sourceTree = "<group>"; };
 		58A45D4AE2FFF18DB37B6498 /* QuickTranslateApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickTranslateApp.swift; sourceTree = "<group>"; };
 		58DB5A7D27D77D85CA5224F4 /* HotKeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKeyManager.swift; sourceTree = "<group>"; };
@@ -28,6 +30,14 @@
 				B7F282B391830AA0BA8E0147 /* QuickTranslate.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		99D61F46FF4D29F8749B37DF /* SupportingFiles */ = {
+			isa = PBXGroup;
+			children = (
+				0E65CD117A82B44015452197 /* Assets.xcassets */,
+			);
+			path = SupportingFiles;
 			sourceTree = "<group>";
 		};
 		BC1FF17DA5F1ECECDA8F46CC /* Sources */ = {
@@ -45,6 +55,7 @@
 			isa = PBXGroup;
 			children = (
 				BC1FF17DA5F1ECECDA8F46CC /* Sources */,
+				99D61F46FF4D29F8749B37DF /* SupportingFiles */,
 				603376795D38F33BF8BB373E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -57,6 +68,7 @@
 			buildConfigurationList = F28F22CA2C7D80BAB79CC375 /* Build configuration list for PBXNativeTarget "QuickTranslate" */;
 			buildPhases = (
 				7395FE49D461EAA71A036414 /* Sources */,
+				67D0C6AB600BE087ADA370D0 /* Resources */,
 				101C6EFA348766ED157D7F2C /* Install to /Applications */,
 			);
 			buildRules = (
@@ -97,6 +109,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		67D0C6AB600BE087ADA370D0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1E9C4670328686E5F56F5410 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
 		101C6EFA348766ED157D7F2C /* Install to /Applications */ = {
