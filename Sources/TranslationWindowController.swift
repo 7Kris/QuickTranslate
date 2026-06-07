@@ -32,8 +32,12 @@ class TranslationWindowController: NSObject, NSWindowDelegate {
     func updateResult(_ result: String, sourceLanguage: TranslationLanguage? = nil, targetLanguage: TranslationLanguage? = nil) {
         viewModel.translatedText = result
         viewModel.isLoading = false
-        if let source = sourceLanguage { viewModel.sourceLanguage = source }
-        if let target = targetLanguage { viewModel.targetLanguage = target }
+        if let source = sourceLanguage, let target = targetLanguage {
+            // 翻訳結果によるピッカー更新で onChange が発火し再翻訳ループに入るのを防ぐ
+            viewModel.lastTranslation = (source, target)
+            viewModel.sourceLanguage = source
+            viewModel.targetLanguage = target
+        }
     }
 
     func setError(_ isError: Bool) {
@@ -121,6 +125,8 @@ class TranslationViewModel: ObservableObject {
     @Published var isError: Bool = false
     @Published var sourceLanguage: TranslationLanguage = .english
     @Published var targetLanguage: TranslationLanguage = .japanese
+    // 直近の翻訳で使った言語ペア。翻訳結果でピッカーを更新した際の onChange による再翻訳を抑止する
+    var lastTranslation: (source: TranslationLanguage, target: TranslationLanguage)?
     @Published var fontSize: CGFloat {
         didSet { UserDefaults.standard.set(fontSize, forKey: Self.fontSizeKey) }
     }
@@ -213,6 +219,11 @@ struct TranslationView: View {
 
     private func retranslateIfNeeded() {
         guard !viewModel.originalText.isEmpty, !viewModel.isLoading else { return }
+        // 翻訳結果の反映によるピッカー更新 (= 直近の翻訳と同じ言語ペア) では再翻訳しない
+        if let last = viewModel.lastTranslation,
+           last == (viewModel.sourceLanguage, viewModel.targetLanguage) {
+            return
+        }
         onTranslate(viewModel.originalText, viewModel.sourceLanguage, viewModel.targetLanguage)
     }
 
@@ -228,7 +239,8 @@ struct TranslationView: View {
             Spacer()
 
             Button("翻訳 (⌘Enter)") {
-                onTranslate(viewModel.originalText, viewModel.sourceLanguage, viewModel.targetLanguage)
+                // 言語は毎回テキストから自動検知する (nil を渡すと detect が走る)
+                onTranslate(viewModel.originalText, nil, nil)
             }
             .keyboardShortcut(.return, modifiers: .command)
             .disabled(viewModel.isLoading || viewModel.originalText.isEmpty)

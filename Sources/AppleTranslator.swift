@@ -55,10 +55,23 @@ enum TranslationLanguage: String, CaseIterable, Identifiable {
     }
 
     static func detect(from text: String) -> TranslationLanguage {
-        let japaneseCharSet = CharacterSet(charactersIn: "\u{3040}"..."\u{309F}")
-            .union(CharacterSet(charactersIn: "\u{30A0}"..."\u{30FF}"))
-            .union(CharacterSet(charactersIn: "\u{4E00}"..."\u{9FFF}"))
-        return text.rangeOfCharacter(from: japaneseCharSet) != nil ? .japanese : .english
+        // 日本語文字数 (ひらがな・カタカナ・漢字)
+        var japaneseCount = 0
+        for scalar in text.unicodeScalars {
+            switch scalar.value {
+            case 0x3040...0x309F, 0x30A0...0x30FF, 0x4E00...0x9FFF:
+                japaneseCount += 1
+            default:
+                break
+            }
+        }
+        guard japaneseCount > 0 else { return .english }
+
+        // 日本語文字が混ざっていても、日付や固有名詞程度で英文が主体なら英語と判定する。
+        // 単純な文字数比較だと長い英識別子を含む日本語文 (例:「TranslationSessionを呼ぶ」)
+        // が英語に誤判定されるため、日本語文字数と「英単語の数」を比較する
+        let englishWordCount = text.split(whereSeparator: { !($0.isASCII && $0.isLetter) }).count
+        return japaneseCount >= englishWordCount ? .japanese : .english
     }
 }
 
