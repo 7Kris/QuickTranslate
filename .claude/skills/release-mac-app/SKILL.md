@@ -16,6 +16,7 @@ GitHub Releases へ Developer ID 署名 + Apple 公証済みの `.app` を zip �
 5. `notarytool` で Apple 公証 → `stapler` で staple
 6. zip 化、`git commit` → `git tag` → `git push`
 7. `gh release create` で zip をアセット添付して公開
+8. `build/` に残ったビルド成果物 (バイナリ・zip) をすべて削除
 
 各ステップで失敗したら止まり、ユーザーに状況を伝えて指示を仰ぐ。中断点で人間の確認を入れるのは、リリースは取り消しが効きにくいから。
 
@@ -251,7 +252,17 @@ gh release create v$VERSION \
 
 成功したら URL を表示し、ユーザーに知らせる。
 
-### 9. リリース後のセキュリティ警告 (必ず行う)
+### 9. ビルド成果物のクリーンアップ (必ず行う)
+
+リリース成功後、`build/` に残ったバイナリ (xcarchive、export、submit/配布用 zip、過去リリースの zip など) をすべて削除する。配布物は GitHub Releases にアップロード済みなのでローカルに残す必要はない。`make build` の出力先 `build/Release` も大文字小文字を区別しない FS では `build/release` と同じディレクトリに混ざるため、`build/` ごと消すのが確実。
+
+```bash
+rm -rf build
+```
+
+**`gh release create` が成功した後にのみ実行すること**。リリースが途中で失敗した場合は、再開に使える成果物 (公証済み `.app` や zip) を残しておく。
+
+### 10. リリース後のセキュリティ警告 (必ず行う)
 
 セットアップフェーズで App-specific password を会話で受け取っている場合、その文字列は会話履歴とログに残る。リリース完了後に必ず以下をユーザーに案内する:
 
