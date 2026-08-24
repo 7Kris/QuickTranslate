@@ -88,10 +88,18 @@ echo "deploymentTarget: $TARGET"
 `xcodegen` プロジェクトでは `postBuildScripts` が archive 中にも走る。`/Applications/` への cp や git push のような副作用スクリプトがあると、リリースビルド中に意図しない変更が起きる。
 
 ```bash
-grep -A5 "postBuildScripts:" project.yml
+sed -n "/postBuildScripts:/,/^    info:/p" project.yml   # スクリプト全体を確実に出す
 ```
 
-副作用がありそうなら、スクリプト先頭に `[ "$ACTION" = "archive" ] && exit 0` のガードが入っているか確認。入っていなければユーザーに修正を提案する (本リポジトリでは既に対処済み)。
+副作用がありそうなら、スクリプト先頭にガードが入っているか確認する。**ガードは `ACTION` が `archive` か `install` かの両方を見ること。**
+
+```sh
+case "$ACTION" in archive|install) exit 0 ;; esac
+```
+
+実走中に踏んだ罠: **Xcode は archive 実行時、ビルドフェーズには `ACTION=install` を渡す** (`archive` ではない)。そのため `[ "$ACTION" = "archive" ] && exit 0` だけでは素通りしてスクリプトが走る。しかも `install` アクション時の `BUILT_PRODUCTS_DIR` にあるのは DSTROOT へのシンボリックリンクなので、`cp -R` すると `/Applications/` に**壊れたシンボリックリンク**が残り、リリースのたびにローカルのアプリが壊れる。
+
+リリース前後で `ls -la /Applications/<APP_NAME>.app` を確認し、シンボリックリンクになっていたら消して、公証済みの `.app` を置き直すこと。
 
 ### 2. バージョン推定 (semver 自動バンプ)
 
