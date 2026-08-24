@@ -32,25 +32,59 @@ targets:
           # cp -R は既存ディレクトリにマージするので、置き換えには mv/rm が必要
           # (壊れたシンボリックリンクが残っている場合も cp は `Not a directory` で失敗する)。
           DEST="/Applications/$PRODUCT_NAME.app"
-          # 一時パスは PID 付き。固定名だと並行ビルド同士が互いの退避先を消し合う
-          STAGING="$DEST.$$.new"
-          BACKUP="$DEST.$$.old"
-          # 中断・失敗しても、中途半端なコピーを残さず、アプリが消えた状態にもしない
+          # 作業用は隠しディレクトリに置く。/Applications 直下に .app を晒すと
+          # LaunchServices/Spotlight が別アプリとして拾ってしまう。
+          STAGE_DIR="/Applications/.$PRODUCT_NAME-install"
+          STAGING="$STAGE_DIR/$PRODUCT_NAME.app"
+          BACKUP="$STAGE_DIR/$PRODUCT_NAME.app.old"
+          LOCK="/Applications/.$PRODUCT_NAME-install.lock"
+
+          # 同じプロジェクトを同時にビルドすると、退避と rename が交差して
+          # .app の中に .app が入れ子でコピーされる (署名が壊れるのに成功扱いになる)。
+          # mkdir は atomic なのでこれをロックに使う。
+          # 前のビルドが SIGKILL 等で残したロックは、PID が生きていなければ奪う。
+          if ! mkdir "$LOCK" 2>/dev/null; then
+            OWNER=$(cat "$LOCK/pid" 2>/dev/null || true)
+            if [ -n "$OWNER" ] && kill -0 "$OWNER" 2>/dev/null; then
+              echo "warning: 別のビルドが $DEST を更新中のためスキップします"
+              exit 0
+            fi
+            rm -rf "$LOCK"
+            if ! mkdir "$LOCK" 2>/dev/null; then
+              echo "warning: 別のビルドが $DEST を更新中のためスキップします"
+              exit 0
+            fi
+          fi
+          echo $$ > "$LOCK/pid"
+
+          # 中断・失敗しても中途半端なコピーを残さず、アプリが消えた状態にもしない。
+          # SIGKILL 等でトラップごと飛ばされた場合も、次回ビルド冒頭の cleanup で復旧する。
+          # ロック解放は cleanup に含めない。起動時の自己修復で自分のロックを外してしまう。
           cleanup() {
-            if [ ! -e "$DEST" ] && [ -e "$BACKUP" ]; then
+            if [ ! -e "$DEST" ] && { [ -e "$BACKUP" ] || [ -L "$BACKUP" ]; }; then
               mv "$BACKUP" "$DEST"
             fi
-            rm -rf "$STAGING" "$BACKUP"
+            rm -rf "$STAGE_DIR"
           }
-          trap cleanup EXIT
+          trap 'cleanup; rm -rf "$LOCK"' EXIT
           trap 'exit 1' INT TERM
+          cleanup
+          mkdir -p "$STAGE_DIR"
           cp -R "$BUILT_PRODUCTS_DIR/$PRODUCT_NAME.app" "$STAGING"
-          # 差し替えは rename 2 回で行う。rm -rf "$DEST" を挟むと、その数百ミリ秒の間
-          # アプリが 1 個も存在しない状態になる。
+          # 差し替えは rename で行う。rm -rf "$DEST" してから cp すると、
+          # コピーにかかる間アプリが存在しない状態が続く。
           if [ -e "$DEST" ] || [ -L "$DEST" ]; then
             mv "$DEST" "$BACKUP"
           fi
+          # ロックの外にいるプロセス (Finder でのコピー等) が作った場合に備える
+          rm -rf "$DEST"
           mv "$STAGING" "$DEST"
+          # ロックの外から $DEST を作られると mv が入れ子コピーになる。
+          # sh からは rename の入れ替えが使えないので、黙って壊れる代わりに落とす。
+          if [ -e "$DEST/$PRODUCT_NAME.app" ]; then
+            echo "error: $DEST が別プロセスに作り直されたため入れ子コピーになりました。もう一度ビルドしてください" >&2
+            exit 1
+          fi
           echo "✅ $DEST にインストールしました"
         name: Install to /Applications
         basedOnDependencyAnalysis: false

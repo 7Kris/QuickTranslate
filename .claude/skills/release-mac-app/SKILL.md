@@ -88,7 +88,7 @@ echo "deploymentTarget: $TARGET"
 `xcodegen` プロジェクトでは `postBuildScripts` が archive 中にも走る。`/Applications/` への cp や git push のような副作用スクリプトがあると、リリースビルド中に意図しない変更が起きる。
 
 ```bash
-grep -A25 "postBuildScripts:" project.yml   # スクリプト全体が見える行数にすること
+sed -n "/postBuildScripts:/,/^    info:/p" project.yml   # スクリプト全体を確実に出す
 ```
 
 副作用がありそうなら、スクリプト先頭にガードが入っているか確認する。**ガードは `ACTION` が `archive` か `install` かの両方を見ること。**
