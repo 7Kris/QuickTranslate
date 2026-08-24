@@ -32,19 +32,25 @@ targets:
           # cp -R は既存ディレクトリにマージするので、置き換えには mv/rm が必要
           # (壊れたシンボリックリンクが残っている場合も cp は `Not a directory` で失敗する)。
           DEST="/Applications/$PRODUCT_NAME.app"
-          STAGING="$DEST.new"
-          BACKUP="$DEST.old"
-          # 途中で失敗しても中途半端なコピーを /Applications/ に残さない
-          trap 'rm -rf "$STAGING"' EXIT
-          rm -rf "$STAGING" "$BACKUP"
+          # 一時パスは PID 付き。固定名だと並行ビルド同士が互いの退避先を消し合う
+          STAGING="$DEST.$$.new"
+          BACKUP="$DEST.$$.old"
+          # 中断・失敗しても、中途半端なコピーを残さず、アプリが消えた状態にもしない
+          cleanup() {
+            if [ ! -e "$DEST" ] && [ -e "$BACKUP" ]; then
+              mv "$BACKUP" "$DEST"
+            fi
+            rm -rf "$STAGING" "$BACKUP"
+          }
+          trap cleanup EXIT
+          trap 'exit 1' INT TERM
           cp -R "$BUILT_PRODUCTS_DIR/$PRODUCT_NAME.app" "$STAGING"
           # 差し替えは rename 2 回で行う。rm -rf "$DEST" を挟むと、その数百ミリ秒の間
-          # アプリが 1 個も存在しない状態になる (中断されるとアプリが消えたままになる)。
+          # アプリが 1 個も存在しない状態になる。
           if [ -e "$DEST" ] || [ -L "$DEST" ]; then
             mv "$DEST" "$BACKUP"
           fi
           mv "$STAGING" "$DEST"
-          rm -rf "$BACKUP"
           echo "✅ $DEST にインストールしました"
         name: Install to /Applications
         basedOnDependencyAnalysis: false
