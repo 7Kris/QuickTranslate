@@ -29,14 +29,22 @@ targets:
           # ここで cp すると /Applications/ に壊れたリンクが残ってしまう。
           case "$ACTION" in archive|install) exit 0 ;; esac
           # 一旦別名でコピーしてから差し替える。cp が途中で失敗しても既存アプリを壊さない。
-          # cp -R は既存ディレクトリにマージするので、置き換えには rm が必要
+          # cp -R は既存ディレクトリにマージするので、置き換えには mv/rm が必要
           # (壊れたシンボリックリンクが残っている場合も cp は `Not a directory` で失敗する)。
           DEST="/Applications/$PRODUCT_NAME.app"
           STAGING="$DEST.new"
-          rm -rf "$STAGING"
+          BACKUP="$DEST.old"
+          # 途中で失敗しても中途半端なコピーを /Applications/ に残さない
+          trap 'rm -rf "$STAGING"' EXIT
+          rm -rf "$STAGING" "$BACKUP"
           cp -R "$BUILT_PRODUCTS_DIR/$PRODUCT_NAME.app" "$STAGING"
-          rm -rf "$DEST"
+          # 差し替えは rename 2 回で行う。rm -rf "$DEST" を挟むと、その数百ミリ秒の間
+          # アプリが 1 個も存在しない状態になる (中断されるとアプリが消えたままになる)。
+          if [ -e "$DEST" ] || [ -L "$DEST" ]; then
+            mv "$DEST" "$BACKUP"
+          fi
           mv "$STAGING" "$DEST"
+          rm -rf "$BACKUP"
           echo "✅ $DEST にインストールしました"
         name: Install to /Applications
         basedOnDependencyAnalysis: false
