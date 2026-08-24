@@ -139,6 +139,13 @@ class TranslationViewModel: ObservableObject {
         self.fontSize = saved > 0 ? saved : Self.defaultFontSize
         self.isHorizontalSplit = UserDefaults.standard.bool(forKey: Self.horizontalSplitKey)
     }
+
+    func clear() {
+        originalText = ""
+        translatedText = ""
+        isLoading = false
+        isError = false
+    }
 }
 
 struct TranslationView: View {
@@ -146,6 +153,7 @@ struct TranslationView: View {
     var onClose: () -> Void
     var onTranslate: (String, TranslationLanguage?, TranslationLanguage?) -> Void
     var onSwap: () -> Void
+    @FocusState private var isOriginalTextFocused: Bool
 
     private var originalSection: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -166,10 +174,13 @@ struct TranslationView: View {
                     }
                     retranslateIfNeeded()
                 }
+                Spacer()
+                clearButton
             }
             TextEditor(text: $viewModel.originalText)
                 .font(.system(size: viewModel.fontSize))
                 .scrollContentBackground(.hidden)
+                .focused($isOriginalTextFocused)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -229,7 +240,10 @@ struct TranslationView: View {
 
     private var actionButtons: some View {
         HStack {
-            Button(action: onSwap) {
+            Button(action: {
+                isOriginalTextFocused = false
+                onSwap()
+            }) {
                 Image(systemName: viewModel.isHorizontalSplit ? "arrow.left.arrow.right" : "arrow.up.arrow.down")
             }
             .keyboardShortcut(.return, modifiers: [.command, .shift])
@@ -239,6 +253,7 @@ struct TranslationView: View {
             Spacer()
 
             Button("翻訳 (⌘Enter)") {
+                isOriginalTextFocused = false
                 // 言語は毎回テキストから自動検知する (nil を渡すと detect が走る)
                 onTranslate(viewModel.originalText, nil, nil)
             }
@@ -256,6 +271,17 @@ struct TranslationView: View {
             }
             .disabled(viewModel.isLoading || viewModel.translatedText.isEmpty)
         }
+    }
+
+    private var clearButton: some View {
+        Button(action: viewModel.clear) {
+            Image(systemName: "xmark")
+                .padding(4)
+        }
+        .buttonBorderShape(.circle)
+        .labelStyle(.iconOnly)
+        .opacity(viewModel.originalText.isEmpty ? 0.0 : 1.0)
+        .disabled(viewModel.isLoading)
     }
 
     var body: some View {
