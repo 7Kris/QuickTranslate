@@ -139,7 +139,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# archive 時は配布物作成中なので /Applications/ への上書きをスキップ。\n# Xcode は archive のビルドフェーズに ACTION=install を渡す (archive ではない) ので両方見る。\n# install 時の BUILT_PRODUCTS_DIR にあるのは DSTROOT へのシンボリックリンクなので、\n# ここで cp すると /Applications/ に壊れたリンクが残ってしまう。\ncase \"$ACTION\" in archive|install) exit 0 ;; esac\n# cp -R は既存ディレクトリにマージするので、消してから入れ直す。\n# 壊れたシンボリックリンクが残っている場合も cp が exit 1 になるため必須。\nrm -rf \"/Applications/$PRODUCT_NAME.app\"\ncp -R \"$BUILT_PRODUCTS_DIR/$PRODUCT_NAME.app\" /Applications/\necho \"✅ /Applications/$PRODUCT_NAME.app にインストールしました\"\n";
+			shellScript = "set -e\n# archive 時は配布物作成中なので /Applications/ への上書きをスキップ。\n# Xcode は archive のビルドフェーズに ACTION=install を渡す (archive ではない) ので両方見る。\n# install 時の BUILT_PRODUCTS_DIR にあるのは DSTROOT へのシンボリックリンクなので、\n# ここで cp すると /Applications/ に壊れたリンクが残ってしまう。\ncase \"$ACTION\" in archive|install) exit 0 ;; esac\n# 一旦別名でコピーしてから差し替える。cp が途中で失敗しても既存アプリを壊さない。\n# cp -R は既存ディレクトリにマージするので、置き換えには rm が必要\n# (壊れたシンボリックリンクが残っている場合も cp は `Not a directory` で失敗する)。\nDEST=\"/Applications/$PRODUCT_NAME.app\"\nSTAGING=\"$DEST.new\"\nrm -rf \"$STAGING\"\ncp -R \"$BUILT_PRODUCTS_DIR/$PRODUCT_NAME.app\" \"$STAGING\"\nrm -rf \"$DEST\"\nmv \"$STAGING\" \"$DEST\"\necho \"✅ $DEST にインストールしました\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

@@ -22,16 +22,22 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     postBuildScripts:
       - script: |
+          set -e
           # archive 時は配布物作成中なので /Applications/ への上書きをスキップ。
           # Xcode は archive のビルドフェーズに ACTION=install を渡す (archive ではない) ので両方見る。
           # install 時の BUILT_PRODUCTS_DIR にあるのは DSTROOT へのシンボリックリンクなので、
           # ここで cp すると /Applications/ に壊れたリンクが残ってしまう。
           case "$ACTION" in archive|install) exit 0 ;; esac
-          # cp -R は既存ディレクトリにマージするので、消してから入れ直す。
-          # 壊れたシンボリックリンクが残っている場合も cp が exit 1 になるため必須。
-          rm -rf "/Applications/$PRODUCT_NAME.app"
-          cp -R "$BUILT_PRODUCTS_DIR/$PRODUCT_NAME.app" /Applications/
-          echo "✅ /Applications/$PRODUCT_NAME.app にインストールしました"
+          # 一旦別名でコピーしてから差し替える。cp が途中で失敗しても既存アプリを壊さない。
+          # cp -R は既存ディレクトリにマージするので、置き換えには rm が必要
+          # (壊れたシンボリックリンクが残っている場合も cp は `Not a directory` で失敗する)。
+          DEST="/Applications/$PRODUCT_NAME.app"
+          STAGING="$DEST.new"
+          rm -rf "$STAGING"
+          cp -R "$BUILT_PRODUCTS_DIR/$PRODUCT_NAME.app" "$STAGING"
+          rm -rf "$DEST"
+          mv "$STAGING" "$DEST"
+          echo "✅ $DEST にインストールしました"
         name: Install to /Applications
         basedOnDependencyAnalysis: false
     info:
