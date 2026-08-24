@@ -27,6 +27,9 @@ targets:
           # install 時の BUILT_PRODUCTS_DIR にあるのは DSTROOT へのシンボリックリンクなので、
           # ここで cp すると /Applications/ に壊れたリンクが残ってしまう。
           case "$ACTION" in archive|install) exit 0 ;; esac
+          # cp -R は既存ディレクトリにマージするので、消してから入れ直す。
+          # 壊れたシンボリックリンクが残っている場合も cp が exit 1 になるため必須。
+          rm -rf "/Applications/$PRODUCT_NAME.app"
           cp -R "$BUILT_PRODUCTS_DIR/$PRODUCT_NAME.app" /Applications/
           echo "✅ /Applications/$PRODUCT_NAME.app にインストールしました"
         name: Install to /Applications

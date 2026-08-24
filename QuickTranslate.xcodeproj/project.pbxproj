@@ -139,7 +139,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# archive 時は配布物作成中なので /Applications/ への上書きをスキップ。\n# Xcode は archive のビルドフェーズに ACTION=install を渡す (archive ではない) ので両方見る。\n# install 時の BUILT_PRODUCTS_DIR にあるのは DSTROOT へのシンボリックリンクなので、\n# ここで cp すると /Applications/ に壊れたリンクが残ってしまう。\ncase \"$ACTION\" in archive|install) exit 0 ;; esac\ncp -R \"$BUILT_PRODUCTS_DIR/$PRODUCT_NAME.app\" /Applications/\necho \"✅ /Applications/$PRODUCT_NAME.app にインストールしました\"\n";
+			shellScript = "# archive 時は配布物作成中なので /Applications/ への上書きをスキップ。\n# Xcode は archive のビルドフェーズに ACTION=install を渡す (archive ではない) ので両方見る。\n# install 時の BUILT_PRODUCTS_DIR にあるのは DSTROOT へのシンボリックリンクなので、\n# ここで cp すると /Applications/ に壊れたリンクが残ってしまう。\ncase \"$ACTION\" in archive|install) exit 0 ;; esac\n# cp -R は既存ディレクトリにマージするので、消してから入れ直す。\n# 壊れたシンボリックリンクが残っている場合も cp が exit 1 になるため必須。\nrm -rf \"/Applications/$PRODUCT_NAME.app\"\ncp -R \"$BUILT_PRODUCTS_DIR/$PRODUCT_NAME.app\" /Applications/\necho \"✅ /Applications/$PRODUCT_NAME.app にインストールしました\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
