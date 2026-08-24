@@ -1,8 +1,8 @@
 # QuickTranslate
 
-macOS メニューバー常駐型の翻訳アプリ。グローバルショートカットキーでクリップボードのテキストを即座に翻訳します。
+macOS メニューバー常駐型の翻訳アプリ。グローバルショートカットキーでクリップボードのテキストを即座に翻訳します。完全にローカルで動作するのでインターネット接続や使用料金は不要です。
 
-<img width="752" height="592" alt="スクリーンショット 2026-08-25 1 43 25" src="https://github.com/user-attachments/assets/3726b5f1-1ed2-4857-ab63-a953e7fea460" />
+<img width="843" height="603" alt="スクリーンショット 2026-08-25 2 01 03" src="https://github.com/user-attachments/assets/709b82dc-f087-4db2-b9d0-c69f715b4028" />
 
 
 ## 機能
