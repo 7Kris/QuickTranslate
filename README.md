@@ -4,6 +4,9 @@ macOS メニューバー常駐型の翻訳アプリ。グローバルショー�
 
 <img width="843" height="603" alt="スクリーンショット 2026-08-25 2 01 03" src="https://github.com/user-attachments/assets/709b82dc-f087-4db2-b9d0-c69f715b4028" />
 
+## インストール
+https://github.com/kenmaz/QuickTranslate/releases
+から最新のzipをダウンロードしてApplicationフォルダに移動して使用できます
 
 ## 機能
 
